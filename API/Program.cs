@@ -1,5 +1,6 @@
 
 
+using API.Helpers;
 using Core.Interfaces;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -14,8 +15,9 @@ namespace API
 
             //Dung cho nhieu truong hop AddScoped
             builder.Services.AddScoped<IProductRepository, ProductRepository>();
+            builder.Services.AddScoped(typeof(IGenericRepository<>), (typeof(GenericRepository<>)));
             // Add services to the container.
-
+            builder.Services.AddAutoMapper(typeof(MappingProfiles));
             builder.Services.AddControllers();
             //Cau hinh ket noi toi co so du lieu qua connectionStrring
             builder.Services.AddDbContext<StoreContext>(x => x.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -33,6 +35,9 @@ namespace API
             }
 
             app.UseHttpsRedirection();
+
+            app.UseRouting();
+            app.UseStaticFiles();
 
             app.UseAuthorization();
 
