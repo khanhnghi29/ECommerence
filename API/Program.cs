@@ -8,6 +8,7 @@ using Core.Interfaces;
 using Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 
 
 namespace API
@@ -26,9 +27,23 @@ namespace API
             builder.Services.AddControllers();
             //Cau hinh ket noi toi co so du lieu qua connectionStrring
             builder.Services.AddDbContext<StoreContext>(x => x.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+            // builder.Services.AddSingleton<ConnectionMultiplexer>(c => 
+            // {
+            //     var configuration = ConfigurationOptions.Parse(config.GetConnectionString("Redis"), true);
+            //     return ConnectionMultiplexer.Connect(configuration);
+
+            // });
+            
             // De dich chuyen sang Extensions
             builder.Services.AddApplicationServices(builder.Configuration);
             builder.Services.AddSwaggerDocumentation();
+            builder.Services.AddCors(opt =>
+            {
+                opt.AddPolicy("CorsPolicy", policy =>
+                {
+                    policy.AllowAnyHeader().AllowAnyMethod().WithOrigins("https://localhost:4200");
+                });
+            });
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             // builder.Services.Configure<ApiBehaviorOptions>(
             //  options =>
