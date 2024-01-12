@@ -4,113 +4,74 @@ using API.Errors;
 using API.Extensions;
 using API.Helpers;
 using API.Middleware;
-using Core.Interfaces;
+using Core.Entities.Identity;
 using Infrastructure.Data;
-using Microsoft.AspNetCore.Mvc;
+using Infrastructure.Data.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
+using Microsoft.Extensions.FileProviders;
+
 
 
 namespace API
 {
     public class Program
     {
+
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            //Dung cho nhieu truong hop AddScoped
-            // builder.Services.AddScoped<IProductRepository, ProductRepository>();
-            // builder.Services.AddScoped(typeof(IGenericRepository<>), (typeof(GenericRepository<>)));
             // Add services to the container.
-            builder.Services.AddAutoMapper(typeof(MappingProfiles));
+
             builder.Services.AddControllers();
-            //Cau hinh ket noi toi co so du lieu qua connectionStrring
-            builder.Services.AddDbContext<StoreContext>(x => x.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-            // builder.Services.AddSingleton<ConnectionMultiplexer>(c => 
-            // {
-            //     var configuration = ConfigurationOptions.Parse(config.GetConnectionString("Redis"), true);
-            //     return ConnectionMultiplexer.Connect(configuration);
-
-            // });
-            
-            // De dich chuyen sang Extensions
             builder.Services.AddApplicationServices(builder.Configuration);
+            builder.Services.AddIdentityServices(builder.Configuration);
             builder.Services.AddSwaggerDocumentation();
-            builder.Services.AddCors(opt =>
-            {
-                opt.AddPolicy("CorsPolicy", policy =>
-                {
-                    policy.AllowAnyHeader().AllowAnyMethod().WithOrigins("https://localhost:4200");
-                });
-            });
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            // builder.Services.Configure<ApiBehaviorOptions>(
-            //  options =>
-            //  {
-            //      options.InvalidModelStateResponseFactory = actionContext =>
-            //      {
-            //          var errors = actionContext.ModelState
-            //                      .Where(e => e.Value.Errors.Count > 0)
-            //                      .SelectMany(x => x.Value.Errors)
-            //                      .Select(x => x.ErrorMessage).ToArray();
-
-            //          var errorResponse = new ApiValidationErrorResponse
-            //          {
-            //              Errors = errors
-            //          };
-
-            //          return new BadRequestObjectResult(errorResponse);
-            //      };
-            //  });
-
-            builder.Services.AddEndpointsApiExplorer();
-            // builder.Services.AddSwaggerGen(c => 
-            // {
-            //     c.SwaggerDoc("v1", new OpenApiInfo {Title = "SkiNet API", Version = "v1"});
-            // });
 
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            // if (app.Environment.IsDevelopment())
-            // {
-            //     app.UseSwagger();
-            //     app.UseSwaggerUI();
-            // }
             app.UseMiddleware<ExceptionMiddleware>();
 
             app.UseStatusCodePagesWithReExecute("/errors/{0}");
-            app.UseHttpsRedirection();
 
-            app.UseRouting();
-            app.UseStaticFiles();
-
-            app.UseAuthorization();
-            // app.UseSwagger();
-            // app.UseSwaggerUI(c => 
-            // {
-            //     c.SwaggerEndpoint("/swagger/v1/swagger.json", "SkiNet API v1");
-            // });
             app.UseSwaggerDocumentation();
-            app.MapControllers();
-            //
-            using var scope = app.Services.CreateScope();
-            var services = scope.ServiceProvider;
-            var context = services.GetRequiredService<StoreContext>();
-            var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-            try
-            {
-                await context.Database.MigrateAsync();
-                await StoreContextSeed.SeedAsync(context, loggerFactory);
-            }
-            catch (Exception ex)
-            {
-                var logger = loggerFactory.CreateLogger<Program>();
-                logger.LogError(ex, "An error occured during migration");
-            }
 
-            //
+            app.UseStaticFiles();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(
+                    Path.Combine(Directory.GetCurrentDirectory(), "Content")),
+                RequestPath = "/Content"
+            });
+
+            app.UseCors("CorsPolicy");
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.MapControllers();
+            app.MapFallbackToController("Index", "Fallback");
+
+            // using var scope = app.Services.CreateScope();
+            // var services = scope.ServiceProvider;
+            // var context = services.GetRequiredService<StoreContext>();
+            // var identityContext = services.GetRequiredService<AppIdentityDbContext>();
+            // var userManager = services.GetRequiredService<UserManager<AppUser>>();
+            // var logger = services.GetRequiredService<ILogger<Program>>();
+            // try
+            // {
+            //     await context.Database.MigrateAsync();
+            //     await identityContext.Database.MigrateAsync();
+            //     await StoreContextSeed.SeedAsync(context);
+            //     await AppIdentityDbContextSeed.SeedUsersAsync(userManager);
+            // }
+            // catch (Exception ex)
+            // {
+            //     logger.LogError(ex, "An error occured during migration");
+            // }
+
             app.Run();
         }
     }
